@@ -342,6 +342,7 @@ void wait_for_downloading(lt::session& ses, char const* name)
 	{
 		print_alerts(ses, name, true, true, true, &downloading_alert, false);
 		if (downloading_done) break;
+		if (total_seconds(clock_type::now() - start) > 10) break;
 		a = ses.wait_for_alert(seconds(2));
 	} while (a);
 	if (!downloading_done)
