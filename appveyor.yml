@@ -111,7 +111,7 @@ build_script:
 - if defined x64 (
   b2.exe --hash -j2 address-model=64 win-tests %compiler% variant=%variant% link=shared linkflags=%linkflags64% include=%include%
   ) else (
-  & b2.exe --hash -j2 address-model=32 win-tests %compiler% variant=%variant% link=shared linkflags=%linkflags32% include=%include%
+  b2.exe --hash -j2 address-model=32 win-tests %compiler% variant=%variant% link=shared linkflags=%linkflags32% include=%include%
   & cd %ROOT_DIRECTORY%\examples
   & b2.exe --hash -j2 %compiler% variant=%variant% linkflags=%linkflags32% include=%include%
   & cd %ROOT_DIRECTORY%\bindings\python
