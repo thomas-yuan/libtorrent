@@ -215,10 +215,11 @@ namespace libtorrent
 		// to avoid being blocked for slow or failing responses. Chances
 		// are that we're shutting down, and this should be a best-effort
 		// attempt. It's not worth stalling shutdown.
-		proxy_settings ps(settings);
+		aux::proxy_settings ps(settings);
 		m_tracker_connection->get(url, seconds(timeout)
 			, tracker_req().event == tracker_request::stopped ? 2 : 1
-			, &ps, 5, settings.get_bool(settings_pack::anonymous_mode)
+			, ps.proxy_tracker_connections ? &ps : NULL
+			, 5, settings.get_bool(settings_pack::anonymous_mode)
 				? "" : settings.get_str(settings_pack::user_agent)
 			, bind_interface()
 			, tracker_req().event == tracker_request::stopped
@@ -510,7 +511,7 @@ namespace libtorrent
 					p.hostname = base32encode(std::string(peers + i, 32), string::i2p);
 					p.hostname += ".b32.i2p";
 					p.port = 6881;
-					resp.peers.push_back (p);
+					resp.peers.push_back(p);
 				}
 			}
 			else

@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2015, Arvid Norberg
+Copyright (c) 2003-2015, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,39 +30,49 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#include "libtorrent/aux_/proxy_settings.hpp"
 #include "libtorrent/settings_pack.hpp"
-#include "libtorrent/alert.hpp"
-#include "settings.hpp"
+#include "libtorrent/aux_/session_settings.hpp"
 
-using namespace libtorrent;
+namespace libtorrent {
+namespace aux {
 
-libtorrent::settings_pack settings()
+proxy_settings::proxy_settings()
+	: type(0)
+	, port(0)
+	, proxy_hostnames(true)
+	, proxy_peer_connections(true)
+	, proxy_tracker_connections(true)
+{}
+
+proxy_settings::proxy_settings(settings_pack const& sett)
 {
-	const int mask = alert::all_categories
-		& ~(alert::progress_notification
-			| alert::performance_warning
-			| alert::stats_notification);
-
-	settings_pack pack;
-	pack.set_bool(settings_pack::enable_lsd, false);
-	pack.set_bool(settings_pack::enable_natpmp, false);
-	pack.set_bool(settings_pack::enable_upnp, false);
-	pack.set_bool(settings_pack::enable_dht, false);
-
-	pack.set_int(settings_pack::alert_mask, mask);
-
-#ifndef TORRENT_BUILD_SIMULATOR
-	pack.set_bool(settings_pack::allow_multiple_connections_per_ip, true);
-#else
-	// we use 0 threads (disk I/O operations will be performed in the network
-	// thread) to be simulator friendly.
-	pack.set_int(settings_pack::aio_threads, 0);
-#endif
-
-#ifndef TORRENT_NO_DEPRECATE
-	pack.set_int(settings_pack::half_open_limit, 1);
-#endif
-
-	return pack;
+	hostname = sett.get_str(settings_pack::proxy_hostname);
+	username = sett.get_str(settings_pack::proxy_username);
+	password = sett.get_str(settings_pack::proxy_password);
+	type = sett.get_int(settings_pack::proxy_type);
+	port = sett.get_int(settings_pack::proxy_port);
+	proxy_hostnames = sett.get_bool(settings_pack::proxy_hostnames);
+	proxy_peer_connections = sett.get_bool(
+		settings_pack::proxy_peer_connections);
+	proxy_tracker_connections = sett.get_bool(
+		settings_pack::proxy_tracker_connections);
 }
+
+proxy_settings::proxy_settings(aux::session_settings const& sett)
+{
+	hostname = sett.get_str(settings_pack::proxy_hostname);
+	username = sett.get_str(settings_pack::proxy_username);
+	password = sett.get_str(settings_pack::proxy_password);
+	type = sett.get_int(settings_pack::proxy_type);
+	port = sett.get_int(settings_pack::proxy_port);
+	proxy_hostnames = sett.get_bool(settings_pack::proxy_hostnames);
+	proxy_peer_connections = sett.get_bool(
+		settings_pack::proxy_peer_connections);
+	proxy_tracker_connections = sett.get_bool(
+		settings_pack::proxy_tracker_connections);
+}
+
+} // namespace aux
+} // namespace libtorrent
 
