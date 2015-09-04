@@ -220,6 +220,31 @@ void network_thread_pool::process_job(socket_job const& j, bool post)
 	}
 }
 
+// TODO: 2 find a better place for this function
+proxy_settings::proxy_settings(settings_pack const& sett)
+{
+	hostname = sett.get_str(settings_pack::proxy_hostname);
+	username = sett.get_str(settings_pack::proxy_username);
+	password = sett.get_str(settings_pack::proxy_password);
+	type = sett.get_int(settings_pack::proxy_type);
+	port = sett.get_int(settings_pack::proxy_port);
+	proxy_hostnames = sett.get_bool(settings_pack::proxy_hostnames);
+	proxy_peer_connections = sett.get_bool(
+		settings_pack::proxy_peer_connections);
+}
+
+proxy_settings::proxy_settings(aux::session_settings const& sett)
+{
+	hostname = sett.get_str(settings_pack::proxy_hostname);
+	username = sett.get_str(settings_pack::proxy_username);
+	password = sett.get_str(settings_pack::proxy_password);
+	type = sett.get_int(settings_pack::proxy_type);
+	port = sett.get_int(settings_pack::proxy_port);
+	proxy_hostnames = sett.get_bool(settings_pack::proxy_hostnames);
+	proxy_peer_connections = sett.get_bool(
+		settings_pack::proxy_peer_connections);
+}
+
 namespace aux {
 
 	void session_impl::init_peer_class_filter(bool unlimited_local)
@@ -1250,10 +1275,8 @@ namespace aux {
 		req.ssl_ctx = &m_ssl_ctx;
 #endif
 #if TORRENT_USE_I2P
-		if (!m_settings.get_str(settings_pack::i2p_hostname).empty())
-		{
-			req.i2pconn = &m_i2p_conn;
-		}
+		req.i2pconn = &m_i2p_conn;
+		req.kind |= tracker_request::i2p;
 #endif
 
 		if (is_any(req.bind_ip)) req.bind_ip = m_listen_interface.address();
@@ -2100,7 +2123,7 @@ retry:
 
 		m_socks_listen_socket = boost::shared_ptr<socket_type>(new socket_type(m_io_service));
 		bool ret = instantiate_connection(m_io_service, proxy()
-			, *m_socks_listen_socket, NULL, NULL, false, false);
+			, *m_socks_listen_socket);
 		TORRENT_ASSERT_VAL(ret, ret);
 		TORRENT_UNUSED(ret);
 
@@ -2172,7 +2195,7 @@ retry:
 
 		m_i2p_listen_socket = boost::shared_ptr<socket_type>(new socket_type(m_io_service));
 		bool ret = instantiate_connection(m_io_service, m_i2p_conn.proxy()
-			, *m_i2p_listen_socket, NULL, NULL, true, false);
+			, *m_i2p_listen_socket);
 		TORRENT_ASSERT_VAL(ret, ret);
 		TORRENT_UNUSED(ret);
 
@@ -3055,7 +3078,7 @@ retry:
 			TORRENT_ASSERT(t.want_tick());
 			TORRENT_ASSERT(!t.is_aborted());
 
-			t.second_tick(tick_interval_ms);
+			t.second_tick(tick_interval_ms, m_tick_residual / 1000);
 
 			// if the call to second_tick caused the torrent
 			// to no longer want to be ticked (i.e. it was

@@ -37,6 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace libtorrent
 {
+	// TODO: 3 enable_if T derives from list_node<T>
 	template <typename T>
 	struct list_node
 	{
@@ -63,8 +64,7 @@ namespace libtorrent
 		T* m_current;
 	};
 
-	// T must derive from list_node<T>. Having an enable_if here would require T
-	// to be a complete type, which is a bit too restrictive.
+	// TOOD: 3 add a unit test
 	template <typename T>
 	struct linked_list
 	{

@@ -180,13 +180,7 @@ void udp_socket::send(udp::endpoint const& ep, char const* p, int len
 		return;
 	}
 
-	const bool allow_proxy
-		= ((flags & peer_connection) && m_proxy_settings.proxy_peer_connections)
-		|| ((flags & tracker_connection) && m_proxy_settings.proxy_tracker_connections)
-		|| (flags & (tracker_connection | peer_connection)) == 0
-		;
-
-	if (allow_proxy)
+	if (!(flags & peer_connection) || m_proxy_settings.proxy_peer_connections)
 	{
 		if (m_tunnel_packets)
 		{
@@ -776,7 +770,7 @@ void udp_socket::bind(udp::endpoint const& ep, error_code& ec)
 	m_bind_port = ep.port();
 }
 
-void udp_socket::set_proxy_settings(aux::proxy_settings const& ps)
+void udp_socket::set_proxy_settings(proxy_settings const& ps)
 {
 	CHECK_MAGIC;
 	TORRENT_ASSERT(is_single_thread());
@@ -844,7 +838,7 @@ void udp_socket::on_name_lookup(error_code const& e, tcp::resolver::iterator i)
 			// if we can't connect to the proxy, and
 			// we're not in privacy mode, try to just
 			// not use a proxy
-			m_proxy_settings = aux::proxy_settings();
+			m_proxy_settings = proxy_settings();
 			m_tunnel_packets = false;
 		}
 

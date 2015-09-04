@@ -863,7 +863,7 @@ namespace libtorrent
 				, m_ssl_ctx.get()
 #endif
 				));
-		aux::proxy_settings ps = m_ses.proxy();
+		proxy_settings ps = m_ses.proxy();
 		conn->get(m_url, seconds(30), 0, &ps
 			, 5, settings().get_str(settings_pack::user_agent));
 		set_state(torrent_status::downloading_metadata);
@@ -1312,9 +1312,6 @@ namespace libtorrent
 	void torrent::need_picker()
 	{
 		if (m_picker) return;
-
-		TORRENT_ASSERT(valid_metadata());
-		TORRENT_ASSERT(m_connections_initialized);
 
 		INVARIANT_CHECK;
 
@@ -1797,8 +1794,8 @@ namespace libtorrent
 #endif
 
 		if (!need_loaded()) return;
-		TORRENT_ASSERT(valid_metadata());
 		TORRENT_ASSERT(m_torrent_file->num_files() > 0);
+		TORRENT_ASSERT(m_torrent_file->is_valid());
 		TORRENT_ASSERT(m_torrent_file->total_size() >= 0);
 
 		if (int(m_file_priority.size()) > m_torrent_file->num_files())
@@ -1879,29 +1876,6 @@ namespace libtorrent
 			m_file_priority.resize(m_torrent_file->num_files(), 0);
 		}
 
-		// it's important to initialize the peers early, because this is what will
-		// fix up their have-bitmasks to have the correct size
-		// TODO: 2 add a unit test where we don't have metadata, connect to a peer
-		// that sends a bitfield that's too large, then we get the metadata
-		if (!m_connections_initialized)
-		{
-			m_connections_initialized = true;
-			// all peer connections have to initialize themselves now that the metadata
-			// is available
-			// copy the peer list since peers may disconnect and invalidate
-			// m_connections as we initialize them
-			std::vector<peer_connection*> peers = m_connections;
-			for (torrent::peer_iterator i = peers.begin();
-				i != peers.end(); ++i)
-			{
-				peer_connection* pc = *i;
-				if (pc->is_disconnecting()) continue;
-				pc->on_metadata_impl();
-				if (pc->is_disconnecting()) continue;
-				pc->init();
-			}
-		}
-
 		// if we've already loaded file priorities, don't load piece priorities,
 		// they will interfere.
 		if (!m_seed_mode && m_resume_data && m_file_priority.empty())
@@ -1930,6 +1904,25 @@ namespace libtorrent
 				, m_file_priority.end(), 0) != m_file_priority.end())
 		{
 			update_piece_priorities();
+		}
+
+		if (!m_connections_initialized)
+		{
+			m_connections_initialized = true;
+			// all peer connections have to initialize themselves now that the metadata
+			// is available
+			// copy the peer list since peers may disconnect and invalidate
+			// m_connections as we initialize them
+			std::vector<peer_connection*> peers = m_connections;
+			for (torrent::peer_iterator i = peers.begin();
+				i != peers.end(); ++i)
+			{
+				peer_connection* pc = *i;
+				if (pc->is_disconnecting()) continue;
+				pc->on_metadata_impl();
+				if (pc->is_disconnecting()) continue;
+				pc->init();
+			}
 		}
 
 		std::vector<web_seed_entry> const& web_seeds = m_torrent_file->web_seeds();
@@ -3200,13 +3193,6 @@ namespace libtorrent
 			req.auth = tracker_login();
 			req.key = tracker_key();
 
-#ifdef TORRENT_USE_OPENSSL
-			if (is_i2p())
-			{
-				req.kind |= tracker_request::i2p;
-			}
-#endif
-
 #ifndef TORRENT_DISABLE_LOGGING
 			debug_log("==> TRACKER REQUEST \"%s\" event: %s abort: %d"
 				, req.url.c_str()
@@ -3431,7 +3417,8 @@ namespace libtorrent
 				continue;
 
 #if TORRENT_USE_I2P
-			if (r.i2pconn && boost::algorithm::ends_with(i->hostname, ".i2p"))
+			char const* top_domain = strrchr(i->hostname.c_str(), '.');
+			if (top_domain && strcmp(top_domain, ".i2p") == 0)
 			{
 				// this is an i2p name, we need to use the sam connection
 				// to do the name lookup
@@ -3444,13 +3431,12 @@ namespace libtorrent
 						, boost::bind(&torrent::on_i2p_resolve
 						, shared_from_this(), _1, _2));
 				}
-				else
-				{
+				else {
 					torrent_state st = get_peer_list_state();
 					need_peer_list();
-					if (m_peer_list->add_i2p_peer(i->hostname.c_str (), peer_info::tracker, 0, &st))
-						state_updated();
-					peers_erased(st.erased);
+					if (m_peer_list->add_i2p_peer (i->hostname.c_str (), peer_info::tracker, 0, &st))
+						state_updated ();
+					peers_erased (st.erased);
 				}
 			}
 			else
@@ -4607,7 +4593,6 @@ namespace libtorrent
 	{
 		if (has_picker())
 		{
-			TORRENT_ASSERT(bits.size() == torrent_file().num_pieces());
 			torrent_peer* pp = peer->peer_info_struct();
 			m_picker->inc_refcount(bits, pp);
 			refresh_suggest_pieces();
@@ -4639,7 +4624,6 @@ namespace libtorrent
 	{
 		if (has_picker())
 		{
-			TORRENT_ASSERT(bits.size() == torrent_file().num_pieces());
 			torrent_peer* pp = peer->peer_info_struct();
 			m_picker->dec_refcount(bits, pp);
 			// TODO: update suggest_piece?
@@ -5274,14 +5258,8 @@ namespace libtorrent
 	{
 //		INVARIANT_CHECK;
 
-#ifndef TORRENT_DISABLE_LOGGING
-		if (!valid_metadata())
-		{
-			debug_log("*** SET_PIECE_PRIORITY [ idx: %d prio: %d ignored. "
-				"no metadata yet ]", index, priority);
-		}
-#endif
-		if (!valid_metadata() || is_seed()) return;
+		TORRENT_ASSERT(valid_metadata());
+		if (is_seed()) return;
 
 		// this call is only valid on torrents with metadata
 		TORRENT_ASSERT(index >= 0);
@@ -5308,10 +5286,10 @@ namespace libtorrent
 	{
 //		INVARIANT_CHECK;
 
-		if (!has_picker()) return 4;
+		TORRENT_ASSERT(valid_metadata());
+		if (!has_picker()) return 1;
 
 		// this call is only valid on torrents with metadata
-		TORRENT_ASSERT(valid_metadata());
 		TORRENT_ASSERT(index >= 0);
 		TORRENT_ASSERT(index < m_torrent_file->num_pieces());
 		if (index < 0 || index >= m_torrent_file->num_pieces()) return 0;
@@ -5364,14 +5342,6 @@ namespace libtorrent
 		// this call is only valid on torrents with metadata
 		TORRENT_ASSERT(valid_metadata());
 		if (is_seed()) return;
-
-		if (!valid_metadata())
-		{
-#ifndef TORRENT_DISABLE_LOGGING
-			debug_log("*** PRIORITIZE_PIECES [ ignored. no metadata yet ]");
-#endif
-			return;
-		}
 
 		need_picker();
 
@@ -5476,15 +5446,10 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-		if (is_seed()) return;
+		// this call is only valid on torrents with metadata
+		if (!valid_metadata() || is_seed()) return;
 
-		// setting file priority on a torrent that doesn't have metadata yet is
-		// similar to having passed in file priorities through add_torrent_params.
-		// we store the priorities in m_file_priority until we get the metadata
-		if (index < 0 || (valid_metadata() && index >= m_torrent_file->num_files()))
-		{
-			return;
-		}
+		if (index < 0 || index >= m_torrent_file->num_files()) return;
 
 		if (prio < 0) prio = 0;
 		else if (prio > 7) prio = 7;
@@ -5493,12 +5458,19 @@ namespace libtorrent
 			// any unallocated slot is assumed to be 1
 			if (prio == 1) return;
 			m_file_priority.resize(index+1, 4);
+
+			// initialize pad files to priority 0
+			file_storage const& fs = m_torrent_file->files();
+			for (int i = 0; i < (std::min)(fs.num_files(), index+1); ++i)
+			{
+				if (!fs.pad_file_at(i)) continue;
+				m_file_priority[i] = 0;
+			}
+
 		}
 
 		if (m_file_priority[index] == prio) return;
 		m_file_priority[index] = prio;
-
-		if (!valid_metadata()) return;
 
 		// stoage may be NULL during shutdown
 		if (m_storage)
@@ -5512,21 +5484,15 @@ namespace libtorrent
 
 	int torrent::file_priority(int index) const
 	{
-		TORRENT_ASSERT_PRECOND(index >= 0);
-		if (index < 0) return 0;
+		// this call is only valid on torrents with metadata
+		if (!valid_metadata()) return 4;
 
-		// if we have metadata, perform additional checks
-		if (valid_metadata())
-		{
-			TORRENT_ASSERT_PRECOND(index < m_torrent_file->num_files());
-			if (index >= m_torrent_file->num_files()) return 0;
+		if (index < 0 || index >= m_torrent_file->num_files()) return 0;
 
-			// pad files always have priority 0
-			if (m_torrent_file->files().pad_file_at(index)) return 0;
-		}
-
-		// any unallocated slot is assumed to be 4 (normal priority)
-		if (int(m_file_priority.size()) <= index) return 4;
+		// any unallocated slot is assumed to be 1
+		// unless it's a pad file
+		if (int(m_file_priority.size()) <= index)
+			return m_torrent_file->files().pad_file_at(index) ? 0 : 4;
 
 		return m_file_priority[index];
 	}
@@ -5570,11 +5536,7 @@ namespace libtorrent
 			if (size == 0) continue;
 			position += size;
 			int file_prio;
-
-			// pad files always have priority 0
-			if (fs.pad_file_at(i))
-				file_prio = 0;
-			else if (m_file_priority.size() <= i)
+			if (m_file_priority.size() <= i)
 				file_prio = 4;
 			else
 				file_prio = m_file_priority[i];
@@ -5684,7 +5646,7 @@ namespace libtorrent
 		// this call is only valid on torrents with metadata
 		TORRENT_ASSERT(valid_metadata());
 		if (!has_picker()) return false;
-
+		
 		TORRENT_ASSERT(m_picker.get());
 		TORRENT_ASSERT(index >= 0);
 		TORRENT_ASSERT(index < m_torrent_file->num_pieces());
@@ -6198,7 +6160,7 @@ namespace libtorrent
 			return;
 		}
 
-		aux::proxy_settings const& ps = m_ses.proxy();
+		proxy_settings const& ps = m_ses.proxy();
 		if (ps.type == settings_pack::http
 			|| ps.type == settings_pack::http_pw)
 		{
@@ -6410,8 +6372,7 @@ namespace libtorrent
 			if (!userdata) userdata = m_ses.ssl_ctx();
 		}
 #endif
-		bool ret = instantiate_connection(m_ses.get_io_service(), m_ses.proxy()
-			, *s, userdata, 0, true, false);
+		bool ret = instantiate_connection(m_ses.get_io_service(), m_ses.proxy(), *s, userdata, 0, true);
 		(void)ret;
 		TORRENT_ASSERT(ret);
 
@@ -7516,12 +7477,7 @@ namespace libtorrent
 				return false;
 			}
 
-			// It's not entirely obvious why this peer connection is not marked as
-			// one. The main feature of a peer connection is that whether or not we
-			// proxy it is configurable. When we use i2p, we want to always prox
-			// everything via i2p.
-			bool ret = instantiate_connection(m_ses.get_io_service()
-				, m_ses.i2p_proxy(), *s, NULL, NULL, false, false);
+			bool ret = instantiate_connection(m_ses.get_io_service(), m_ses.i2p_proxy(), *s);
 			(void)ret;
 			TORRENT_ASSERT(ret);
 			s->get<i2p_stream>()->set_destination(static_cast<i2p_peer*>(peerinfo)->destination);
@@ -7562,7 +7518,7 @@ namespace libtorrent
 #endif
 
 			bool ret = instantiate_connection(m_ses.get_io_service()
-				, m_ses.proxy(), *s, userdata, sm, true, false);
+				, m_ses.proxy(), *s, userdata, sm, true);
 			(void)ret;
 			TORRENT_ASSERT(ret);
 
@@ -8594,6 +8550,7 @@ namespace libtorrent
 				}
 			}
 		}
+
 
 		start_announcing();
 
@@ -9925,7 +9882,8 @@ namespace libtorrent
 			: m_ses.session_time() - m_became_seed);
 	}
 
-	void torrent::second_tick(int tick_interval_ms)
+	// TODO: 2 if residual is not used, remove it
+	void torrent::second_tick(int tick_interval_ms, int /* residual */)
 	{
 		TORRENT_ASSERT(want_tick());
 		TORRENT_ASSERT(is_single_thread());

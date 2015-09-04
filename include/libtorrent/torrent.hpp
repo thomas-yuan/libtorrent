@@ -429,7 +429,7 @@ namespace libtorrent
 		// used internally
 		void set_queue_position_impl(int p) { m_sequence_number = p; }
 
-		void second_tick(int tick_interval_ms);
+		void second_tick(int tick_interval_ms, int residual);
 
 		// see if we need to connect to web seeds, and if so,
 		// connect to them
