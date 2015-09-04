@@ -736,6 +736,7 @@ namespace libtorrent
 		// if we're a seed, we don't keep track of piece availability
 		if (t->has_picker())
 		{
+			TORRENT_ASSERT(m_have_piece.size() == t->torrent_file().num_pieces());
 			t->peer_has(m_have_piece, this);
 			bool interesting = false;
 			for (int i = 0; i < int(m_have_piece.size()); ++i)
@@ -1540,7 +1541,7 @@ namespace libtorrent
 #endif
 			return;
 		}
-		
+
 		if (t->valid_metadata())
 		{
 			if (index >= int(m_have_piece.size()))
@@ -2030,8 +2031,13 @@ namespace libtorrent
 		// if we don't have the metedata, we cannot
 		// verify the bitfield size
 		if (t->valid_metadata()
-			&& (bits.size() + 7) / 8 != (m_have_piece.size() + 7) / 8)
+			&& bits.size() != int(m_have_piece.size()))
 		{
+#ifndef TORRENT_DISABLE_LOGGING
+			peer_log(peer_log_alert::incoming_message, "BITFIELD"
+				, "invalid size: %d expected %d", bits.size()
+				, int(m_have_piece.size()));
+#endif
 			disconnect(errors::invalid_bitfield_size, op_bittorrent, 2);
 			return;
 		}
@@ -2285,10 +2291,9 @@ namespace libtorrent
 		{
 #ifndef TORRENT_DISABLE_LOGGING
 			peer_log(peer_log_alert::info, "INVALID_REQUEST", "peer is not interested "
-				" t: %d n: %d h: %d block_limit: %d"
+				" t: %d n: %d block_limit: %d"
 				, int(t->torrent_file().piece_size(r.piece))
 				, t->torrent_file().num_pieces()
-				, t->has_piece_passed(r.piece)
 				, t->block_size());
 			peer_log(peer_log_alert::info, "INTERESTED", "artificial incoming INTERESTED message");
 #endif
@@ -2414,6 +2419,10 @@ namespace libtorrent
 
 			if (m_requests.empty())
 				m_counters.inc_stats_counter(counters::num_peers_up_requests);
+
+			TORRENT_ASSERT(t->valid_metadata());
+			TORRENT_ASSERT(r.piece >= 0);
+			TORRENT_ASSERT(r.piece < t->torrent_file().num_pieces());
 
 			m_requests.push_back(r);
 
@@ -5149,6 +5158,11 @@ namespace libtorrent
 
 				// the callback function may be called immediately, instead of being posted
 				if (!t->need_loaded()) return;
+
+				TORRENT_ASSERT(t->valid_metadata());
+				TORRENT_ASSERT(r.piece >= 0);
+				TORRENT_ASSERT(r.piece < t->torrent_file().num_pieces());
+
 				t->inc_refcount("async_read");
 				m_disk_thread.async_read(&t->storage(), r
 					, boost::bind(&peer_connection::on_disk_read_complete

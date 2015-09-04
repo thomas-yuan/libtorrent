@@ -158,6 +158,7 @@ nobase_include_HEADERS = \
   tommath_superclass.h              \
   \
   aux_/alert_manager_variadic_emplace.hpp \
+  aux_/allocating_handler.hpp       \
   aux_/cpuid.hpp                    \
   aux_/disable_warnings_push.hpp    \
   aux_/disable_warnings_pop.hpp     \
@@ -166,6 +167,7 @@ nobase_include_HEADERS = \
   aux_/session_call.hpp             \
   aux_/session_impl.hpp             \
   aux_/session_settings.hpp         \
+  aux_/proxy_settings.hpp           \
   aux_/session_interface.hpp        \
   aux_/time.hpp                     \
   aux_/file_progress.hpp            \
