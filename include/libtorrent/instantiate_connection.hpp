@@ -34,23 +34,20 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_INSTANTIATE_CONNECTION
 
 #include "libtorrent/socket_type.hpp"
+#include <boost/shared_ptr.hpp>
 
 namespace libtorrent
 {
-	namespace aux {
-		struct proxy_settings;
-	}
-
+	struct proxy_settings;
 	struct utp_socket_manager;
 	struct socket_type;
 
 	// instantiate a socket_type (s) according to the specified criteria
 	TORRENT_EXTRA_EXPORT bool instantiate_connection(io_service& ios
-		, aux::proxy_settings const& ps, socket_type& s
-		, void* ssl_context
-		, utp_socket_manager* sm
-		, bool peer_connection
-		, bool tracker_connection);
+		, proxy_settings const& ps, socket_type& s
+		, void* ssl_context = 0
+		, utp_socket_manager* sm = 0
+		, bool peer_connection = false);
 }
 
 #endif

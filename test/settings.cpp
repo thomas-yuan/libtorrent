@@ -59,10 +59,6 @@ libtorrent::settings_pack settings()
 	pack.set_int(settings_pack::aio_threads, 0);
 #endif
 
-#ifndef TORRENT_NO_DEPRECATE
-	pack.set_int(settings_pack::half_open_limit, 1);
-#endif
-
 	return pack;
 }
 

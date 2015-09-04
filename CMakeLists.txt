@@ -69,11 +69,10 @@ set(sources
 	session_handle
 	session_impl
 	session_settings
-	proxy_settings
 	session_stats
 	settings_pack
 	socket_io
-	socket_type
+	socket_type  
 	socks5_stream
 	stat
 	stat_cache
