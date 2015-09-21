@@ -1,6 +1,10 @@
 libtorrent
 ----------
 
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/thomas-yuan/libtorrent
+   :target: https://gitter.im/thomas-yuan/libtorrent?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 .. image:: https://travis-ci.org/arvidn/libtorrent.svg?branch=master
     :target: https://travis-ci.org/arvidn/libtorrent
 
