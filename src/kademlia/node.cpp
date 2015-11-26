@@ -1219,6 +1219,29 @@ void node::incoming_request(msg const& m, entry& e)
 				, reply);
 		}
 	}
+    else if (query_len == 8 && memcmp(query, "allocate", 8) == 0)
+    {
+        // { sender_public_key, sig,
+        // like mput, caller should sign the message to make sure it own the private key.
+
+        // keep this endpoint for relay.
+        // ideally, key pairs based on device, not identity(person)
+
+        // if we have enough space, return success.
+        // if not, return error.
+    }
+    else if (query_len == 5 && mmecmp(query, "relay", 5) == 0)
+    {
+        // {receiver, sender_public_key, sig, message (fried_request; ICE_candidate or message) }
+        // relay this message.
+
+        // if can't find the target, return error to caller, done
+
+        // if get response from target, then forward back to original, done
+
+        // if no response in 15 seconds, response error to caller.
+
+    }
 	else
 	{
 		// if we don't recognize the message but there's a
