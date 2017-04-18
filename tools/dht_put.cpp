@@ -67,18 +67,18 @@ void usage()
 {
 	std::fprintf(stderr,
 		"USAGE:\ndht <command> <arg>\n\nCOMMANDS:\n"
-		"get <hash>                - retrieves and prints out the immutable\n"
-		"                            item stored under hash.\n"
-		"put <string>              - puts the specified string as an immutable\n"
-		"                            item onto the DHT. The resulting target hash\n"
-		"gen-key <key-file>        - generate ed25519 keypair and save it in\n"
-		"                            the specified file\n"
-		"dump-key <key-file>       - dump ed25519 keypair from the specified key\n"
-		"                            file.\n"
-		"mput <key-file> <string>  - puts the specified string as a mutable\n"
-		"                            object under the public key in key-file\n"
-		"mget <public-key>         - get a mutable object under the specified\n"
-		"                            public key\n"
+		"get <hash>                      - retrieves and prints out the immutable\n"
+		"                                  item stored under hash.\n"
+		"put <string>                    - puts the specified string as an immutable\n"
+		"                                  item onto the DHT. The resulting target hash\n"
+		"gen-key <key-file>              - generate ed25519 keypair and save it in\n"
+		"                                  the specified file\n"
+		"dump-key <key-file>             - dump ed25519 keypair from the specified key\n"
+		"                                  file.\n"
+		"mput <key-file> <string> [salt] - puts the specified string as a mutable\n"
+		"                                  object under the public key in key-file\n"
+		"mget <public-key> [salt]        - get a mutable object under the specified\n"
+		"                                  public key\n"
 		);
 	exit(1);
 }
@@ -356,8 +356,13 @@ int main(int argc, char* argv[])
 		std::tie(pk, sk) = ed25519_create_keypair(seed);
 
 		bootstrap(s);
-		s.dht_put_item(pk.bytes, std::bind(&put_string, _1, _2, _3, _4
-			, pk.bytes, sk.bytes, argv[0]));
+        if (argc > 1) {
+		    s.dht_put_item(pk.bytes, std::bind(&put_string, _1, _2, _3, _4
+			    , pk.bytes, sk.bytes, argv[0]), argv[1]);
+        } else {
+		    s.dht_put_item(pk.bytes, std::bind(&put_string, _1, _2, _3, _4
+			    , pk.bytes, sk.bytes, argv[0]));
+        }
 
 		std::printf("MPUT public key: %s\n", to_hex(pk.bytes).c_str());
 
@@ -386,7 +391,11 @@ int main(int argc, char* argv[])
 		}
 
 		bootstrap(s);
-		s.dht_get_item(public_key);
+        if (argc > 1) {
+            s.dht_get_item(public_key, argv[1]);
+        } else {
+            s.dht_get_item(public_key);
+        }
 		std::printf("MGET %s\n", argv[0]);
 
 		bool authoritative = false;
